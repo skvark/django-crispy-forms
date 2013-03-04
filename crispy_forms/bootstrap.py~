@@ -79,7 +79,7 @@ class FormActions(LayoutObject):
             self.attrs['class'] = self.attrs.pop('css_class')
 
     def render(self, form, form_style, context, template_pack='bootstrap'):
-        html = ''
+        html = u''
         for field in self.fields:
             html += render_field(field, form, form_style, context, template_pack=template_pack)
 
