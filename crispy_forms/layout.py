@@ -18,12 +18,6 @@ class LayoutObject(object):
     def __setitem__(self, slice, value):
         self.fields[slice] = value
 
-    def __delitem__(self, slice):
-        del self.fields[slice]
-
-    def __len__(self):
-        return len(self.fields)
-
     def __getattr__(self, name):
         """
         This allows us to access self.fields list methods like append or insert, without
@@ -157,67 +151,51 @@ class LayoutSlice(object):
             else:
                 return LayoutClass(fields, **kwargs)
 
-    def pre_map(self, function):
+    def wrap(self, LayoutClass, *args, **kwargs):
         """
-        Iterates over layout objects pointed in `self.slice` executing `function` on them.
-        It passes `function` penultimate layout object and the position where to find last one
+        Wraps each pointer in `self.slice` under a `LayoutClass` instance with
+        `args` and `kwargs` passed.
         """
         if isinstance(self.slice, slice):
             for i in range(*self.slice.indices(len(self.layout.fields))):
-                function(self.layout, i)
+                self.layout.fields[i] = self.wrapped_object(LayoutClass, self.layout.fields[i], *args, **kwargs)
 
         elif isinstance(self.slice, list):
             # A list of pointers  Ex: [[[0, 0], 'div'], [[0, 2, 3], 'field_name']]
             for pointer in self.slice:
                 position = pointer[0]
 
-                # If it's pointing first level
+                # If it's pointing first level, there is no need to traverse
                 if len(position) == 1:
-                    function(self.layout, position[-1])
+                    self.layout.fields[position[-1]] = self.wrapped_object(
+                        LayoutClass, self.layout.fields[position[-1]], *args, **kwargs
+                    )
                 else:
                     layout_object = self.layout.fields[position[0]]
                     for i in position[1:-1]:
                         layout_object = layout_object.fields[i]
 
                     try:
-                        function(layout_object, position[-1])
+                        # If layout object has a fields attribute
+                        if hasattr(layout_object, 'fields'):
+                            layout_object.fields[position[-1]] = self.wrapped_object(
+                                LayoutClass, layout_object.fields[position[-1]], *args, **kwargs
+                            )
+                        # Otherwise it's a basestring (a field name)
+                        else:
+                            self.layout.fields[position[0]] = self.wrapped_object(
+                                LayoutClass, layout_object, *args, **kwargs
+                            )
                     except IndexError:
                         # We could avoid this exception, recalculating pointers.
                         # However this case is most of the time an undesired behavior
                         raise DynamicError("Trying to wrap a field within an already wrapped field, \
                             recheck your filter or layout")
 
-
-    def wrap(self, LayoutClass, *args, **kwargs):
-        """
-        Wraps every layout object pointed in `self.slice` under a `LayoutClass` instance with
-        `args` and `kwargs` passed.
-        """
-        def wrap_object(layout_object, j):
-            layout_object.fields[j] = self.wrapped_object(
-                LayoutClass, layout_object.fields[j], *args, **kwargs
-            )
-
-        self.pre_map(wrap_object)
-
-    def wrap_once(self, LayoutClass, *args, **kwargs):
-        """
-        Wraps every layout object pointed in `self.slice` under a `LayoutClass` instance with
-        `args` and `kwargs` passed, unless layout object's parent is already a subclass of
-        `LayoutClass`.
-        """
-        def wrap_object_once(layout_object, j):
-            if not isinstance(layout_object, LayoutClass):
-                layout_object.fields[j] = self.wrapped_object(
-                    LayoutClass, layout_object.fields[j], *args, **kwargs
-                )
-
-        self.pre_map(wrap_object_once)
-
     def wrap_together(self, LayoutClass, *args, **kwargs):
         """
-        Wraps all layout objects pointed in `self.slice` together under a `LayoutClass`
-        instance with `args` and `kwargs` passed.
+        Wraps pointers in `self.slice` together under a `LayoutClass` instance with
+        `args` and `kwargs` passed.
         """
         if isinstance(self.slice, slice):
             # The start of the slice is replaced
@@ -232,36 +210,6 @@ class LayoutSlice(object):
 
         elif isinstance(self.slice, list):
             raise DynamicError("wrap_together doesn't work with filter, only with [] operator")
-
-    def map(self, function):
-        """
-        Iterates over layout objects pointed in `self.slice` executing `function` on them
-        It passes `function` last layout object
-        """
-        if isinstance(self.slice, slice):
-            for i in range(*self.slice.indices(len(self.layout.fields))):
-                function(self.layout.fields[i])
-
-        elif isinstance(self.slice, list):
-            # A list of pointers  Ex: [[[0, 0], 'div'], [[0, 2, 3], 'field_name']]
-            for pointer in self.slice:
-                position = pointer[0]
-
-                layout_object = self.layout.fields[position[0]]
-                for i in position[1:]:
-                    layout_object = layout_object.fields[i]
-
-                function(layout_object)
-
-    def update_attributes(self, **kwargs):
-        """
-        Updates attributes of every layout object pointed in `self.slice` using kwargs
-        """
-        def update_attrs(layout_object):
-            if hasattr(layout_object, 'attrs'):
-                layout_object.attrs.update(kwargs)
-
-        self.map(update_attrs)
 
 
 class ButtonHolder(LayoutObject):
@@ -318,7 +266,7 @@ class BaseInput(object):
         Renders an `<input />` if container is used as a Layout object.
         Input button value can be a variable in context.
         """
-        self.value = Template(unicode(self.value)).render(context)
+        self.value = Template(self.value).render(context)
         return render_to_string(self.template, Context({'input': self}))
 
 
@@ -404,7 +352,7 @@ class Fieldset(LayoutObject):
 
         legend = ''
         if self.legend:
-            legend = '%s' % Template(unicode(self.legend)).render(context)
+            legend = '%s' % Template(self.legend).render(context)
         return render_to_string(self.template, Context({'fieldset': self, 'legend': legend, 'fields': fields, 'form_style': form_style}))
 
 
@@ -453,7 +401,7 @@ class Div(LayoutObject):
     def __init__(self, *fields, **kwargs):
         self.fields = list(fields)
 
-        if hasattr(self, 'css_class') and kwargs.has_key('css_class'):
+        if hasattr(self, 'css_class') and 'css_class' in kwargs.values():
             self.css_class += ' %s' % kwargs.pop('css_class')
         if not hasattr(self, 'css_class'):
             self.css_class = kwargs.pop('css_class', None)
@@ -503,7 +451,7 @@ class HTML(object):
         self.html = html
 
     def render(self, form, form_style, context, template_pack=TEMPLATE_PACK):
-        return Template(unicode(self.html)).render(context)
+        return Template(self.html).render(context)
 
 
 class Field(LayoutObject):
@@ -523,7 +471,7 @@ class Field(LayoutObject):
         if not hasattr(self, 'attrs'):
             self.attrs = {}
 
-        if kwargs.has_key('css_class'):
+        if 'css_class' in kwargs.values():
             if 'class' in self.attrs:
                 self.attrs['class'] += " %s" % kwargs.pop('css_class')
             else:

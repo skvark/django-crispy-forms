@@ -100,4 +100,3 @@ def crispy_field(parser, token):
         attrs[attribute_name] = value
 
     return CrispyFieldNode(field, attrs)
-    

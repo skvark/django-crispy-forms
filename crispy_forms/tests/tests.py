@@ -1,4 +1,3 @@
-
 # -*- coding: utf-8 -*-
 import re
 
@@ -418,7 +417,7 @@ class TestFormHelpers(TestCase):
         html = template.render(c)
 
         # Syntax {% crispy form helper 'template_pack_name' %}
-        template = get_template_from_string("""
+        template = get_template_from_string(u"""
             {%% load crispy_forms_tags %%}
             {%% crispy form form_helper "%s" %%}
         """ % override_pack)
@@ -556,7 +555,7 @@ class TestFormLayout(TestCase):
             )
         )
 
-        template = get_template_from_string("""
+        template = get_template_from_string(u"""
             {% load crispy_forms_tags %}
             {% crispy form form_helper %}
         """)
@@ -1190,46 +1189,6 @@ class TestDynamicLayouts(TestCase):
         self.assertEqual(layout.fields[1], 'password1')
         self.assertEqual(layout.fields[2], 'password2')
 
-    def test_update_attributes_and_wrap_once(self):
-        helper = FormHelper()
-        layout = Layout(
-            'email',
-            Field('password1'),
-            'password2',
-        )
-        helper.layout = layout
-        helper.filter(Field).update_attributes(readonly=True)
-        self.assertTrue(isinstance(layout[1], Field))
-        self.assertEqual(layout[1].attrs, {'readonly': True})
-
-        layout = Layout(
-            'email',
-            Div(Field('password1')),
-            'password2',
-        )
-        helper.layout = layout
-        helper.filter(Field, max_level=2).update_attributes(readonly=True)
-        self.assertTrue(isinstance(layout[1][0], Field))
-        self.assertEqual(layout[1][0].attrs, {'readonly': True})
-
-        layout = Layout(
-            'email',
-            Div(Field('password1')),
-            'password2',
-        )
-        helper.layout = layout
-
-        helper.filter(basestring, greedy=True).wrap_once(Field)
-        helper.filter(Field, greedy=True).update_attributes(readonly=True)
-
-        self.assertTrue(isinstance(layout[0], Field))
-        self.assertTrue(isinstance(layout[1][0], Field))
-        self.assertTrue(isinstance(layout[1][0][0], basestring))
-        self.assertTrue(isinstance(layout[2], Field))
-        self.assertEqual(layout[1][0].attrs, {'readonly': True})
-        self.assertEqual(layout[0].attrs, {'readonly': True})
-        self.assertEqual(layout[2].attrs, {'readonly': True})
-
     def test_get_layout_objects(self):
         layout_1 = Layout(
             Div()
@@ -1478,45 +1437,18 @@ class TestDynamicLayouts(TestCase):
         form.helper.layout = self.advanced_layout
         self.assertRaises(FormHelpersException, lambda: form.helper.filter_by_widget(forms.PasswordInput))
 
-    def test_formhelper__getitem__(self):
-        helper = FormHelper()
+    def test_getitem_by_field_name(self):
+        form = TestForm()
+        form.helper = FormHelper(form)
         layout = Layout(
             Div('email'),
             'password1',
         )
-        helper.layout = layout
-        helper['email'].wrap(Field, css_class='hero')
-        self.assertTrue(isinstance(layout[0][0], Field))
+        form.helper.layout = layout
+        form.helper['email'].wrap(Field, css_class='hero')
+        self.assertTrue(isinstance(layout.fields[0].fields[0], Field))
 
-    def test_formhelper__setitem__(self):
-        helper = FormHelper()
-        layout = Layout(
-            'first_field',
-            Div('email')
-        )
-        helper.layout = layout
-        helper[0] = 'replaced'
-        self.assertEqual(layout[0], 'replaced')
-
-    def test_formhelper__delitem__and__len__(self):
-        helper = FormHelper()
-        layout = Layout(
-            'first_field',
-            Div('email')
-        )
-        helper.layout = layout
-        del helper[0]
-        self.assertEqual(len(helper), 1)
-
-    def test__delitem__and__len__layout_object(self):
-        layout = Layout(
-            'first_field',
-            Div('email')
-        )
-        del layout[0]
-        self.assertEqual(len(layout), 1)
-
-    def test__getitem__layout_object(self):
+    def test_getitem_layout_object(self):
         layout = Layout(
             Div(
                 Div(
@@ -1533,7 +1465,7 @@ class TestDynamicLayouts(TestCase):
         self.assertTrue(isinstance(layout[0][1][0], basestring))
         self.assertTrue(isinstance(layout[0][2], basestring))
 
-    def test__getattr__append_layout_object(self):
+    def test_append_layout_object(self):
         layout = Layout(
             Div('email')
         )
@@ -1542,7 +1474,7 @@ class TestDynamicLayouts(TestCase):
         self.assertTrue(isinstance(layout[0][0], basestring))
         self.assertTrue(isinstance(layout[1], basestring))
 
-    def test__setitem__layout_object(self):
+    def test_setitem_layout_object(self):
         layout = Layout(
             Div('email')
         )

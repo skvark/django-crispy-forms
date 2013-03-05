@@ -12,7 +12,7 @@ from crispy_forms.helper import FormHelper
 
 register = template.Library()
 # We import the filters, so they are available when doing load crispy_forms_tags
-from crispy_forms.templatetags.crispy_forms_filters import *
+from .crispy_forms_filters import *
 
 TEMPLATE_PACK = getattr(settings, 'CRISPY_TEMPLATE_PACK', 'bootstrap')
 
@@ -176,7 +176,7 @@ class BasicNode(template.Node):
             if attribute_name not in response_dict:
                 response_dict[attribute_name] = value
 
-        if 'csrf_token' in context.values():
+        if context.has_key('csrf_token'):
             response_dict['csrf_token'] = context['csrf_token']
 
         return response_dict

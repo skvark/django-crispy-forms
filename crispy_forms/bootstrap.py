@@ -3,9 +3,10 @@ import warnings
 from django.template import Context, Template
 from django.template.loader import render_to_string
 from django.template.defaultfilters import slugify
+from django.forms.util import flatatt
 
 from .layout import LayoutObject, Field, Div
-from .utils import render_field, flatatt
+from .utils import render_field
 
 
 class AppendedText(Field):
@@ -99,7 +100,10 @@ class InlineCheckboxes(Field):
 
     def render(self, form, form_style, context, template_pack='bootstrap'):
         context.update({'inline_class': 'inline'})
-        return super(InlineCheckboxes, self).render(form, form_style, context)
+        html = super(InlineCheckboxes, self).render(form, form_style, context)
+        # We delete the inserted key to avoid side effects
+        del context.dicts[-2]['inline_class']
+        return html
 
 
 class InlineRadios(Field):
@@ -112,7 +116,10 @@ class InlineRadios(Field):
 
     def render(self, form, form_style, context, template_pack='bootstrap'):
         context.update({'inline_class': 'inline'})
-        return super(InlineRadios, self).render(form, form_style, context)
+        html = super(InlineRadios, self).render(form, form_style, context)
+        # We delete the inserted key to avoid side effects
+        del context.dicts[-2]['inline_class']
+        return html
 
 
 class FieldWithButtons(Div):
@@ -151,11 +158,11 @@ class StrictButton(object):
 
         kwargs.setdefault('type', 'button')
 
-        # We turn css_id and css_class into id and class
-        if kwargs.has_key('css_id'):
+        # We turn css_id and css_class ito id and class
+        if 'css_id' in kwargs.values():
             kwargs['id'] = kwargs.pop('css_id')
         kwargs['class'] = self.field_classes
-        if kwargs.has_key('css_class'):
+        if 'css_class' in kwargs.values():
             kwargs['class'] += " %s" % kwargs.pop('css_class')
 
         self.flat_attrs = flatatt(kwargs)

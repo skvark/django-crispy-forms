@@ -29,8 +29,7 @@ class DynamicLayoutHandler(object):
         """
         self._check_layout()
         max_level = kwargs.pop('max_level', 0)
-        greedy = kwargs.pop('greedy', False)
-        filtered_layout_objects = self.layout.get_layout_objects(LayoutClasses, max_level=max_level, greedy=greedy)
+        filtered_layout_objects = self.layout.get_layout_objects(LayoutClasses, max_level=max_level)
 
         return LayoutSlice(self.layout, filtered_layout_objects)
 
@@ -88,18 +87,6 @@ class DynamicLayoutHandler(object):
             return LayoutSlice(self.layout, filtered_field)
 
         return LayoutSlice(self.layout, key)
-
-    def __setitem__(self, key, value):
-        self.layout[key] = value
-
-    def __delitem__(self, key):
-        del self.layout.fields[key]
-
-    def __len__(self):
-        if self.layout is not None:
-            return len(self.layout.fields)
-        else:
-            return 0
 
 
 class FormHelper(DynamicLayoutHandler):
